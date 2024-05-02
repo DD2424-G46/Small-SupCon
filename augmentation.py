@@ -8,6 +8,7 @@ from keras.layers import MaxPooling2D
 from keras.layers import Dense
 from keras.layers import Flatten
 from keras.optimizers import SGD
+from keras.preprocessing.image import ImageDataGenerator
 
 
 def load_dataset():
@@ -29,18 +30,22 @@ def prep_pixels(train, test):
 
 def define_model():
     model = Sequential()
+    # 1st VGG block
     model.add(Conv2D(32, (3, 3), activation='relu', kernel_initializer='he_uniform', padding='same', input_shape=(32, 32, 3)))
-    print(model.output_shape)
     model.add(Conv2D(32, (3, 3), activation='relu', kernel_initializer='he_uniform', padding='same'))
-    print(model.output_shape)
     model.add(MaxPooling2D((2,2)))
-    print(model.output_shape)
+    # 2nd VGG block
+    model.add(Conv2D(64, (3, 3), activation='relu', kernel_initializer='he_uniform', padding='same'))
+    model.add(Conv2D(64, (3, 3), activation='relu', kernel_initializer='he_uniform', padding='same'))
+    model.add(MaxPooling2D((2,2)))
+    # 3rd VGG block
+    model.add(Conv2D(128, (3, 3), activation='relu', kernel_initializer='he_uniform', padding='same'))
+    model.add(Conv2D(128, (3, 3), activation='relu', kernel_initializer='he_uniform', padding='same'))
+    model.add(MaxPooling2D((2,2)))
+    	
     model.add(Flatten())
-    print(model.output_shape)
     model.add(Dense(128, activation='relu', kernel_initializer='he_uniform'))
-    print(model.output_shape)
     model.add(Dense(10, activation='softmax'))
-    print(model.output_shape)
 
     opt = SGD(learning_rate=0.001, momentum=0.9)
     model.compile(optimizer=opt, loss='categorical_crossentropy', metrics=['accuracy'])
@@ -66,7 +71,12 @@ def run_test_harness():
     trainX, trainY, testX, testY = load_dataset()
     trainX, testX = prep_pixels(trainX, testX)
     model = define_model()
-    history = model.fit(trainX, trainY, epochs=100, batch_size=64, validation_data=(testX, testY), verbose=0)
+
+    datagen = ImageDataGenerator(width_shift_range=0.1, height_shift_range=0.1, horizontal_flip=True)
+    it_train = datagen.flot(trainX, trainY, batch_size=64)
+    steps = int(trainX, trainY, batch_size=64)
+    history = model.fix_generator(it_train, steps_per_epoch=steps, epochs=100, validation_data=(testX, testY), verbose=0)
+    
     _, acc = model.evaluate(testX, testY, verbose=0)
     print('> %.3f' % (acc * 100.0))
     summarize_diagnostics(history)

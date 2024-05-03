@@ -11,6 +11,7 @@ from keras.layers import Dense
 from keras.layers import Flatten
 from keras.optimizers import SGD
 import time
+import numpy as np
 
 
 def load_dataset():

@@ -10,7 +10,8 @@ from keras.layers import MaxPooling2D
 from keras.layers import Dense
 from keras.layers import Flatten
 from keras.optimizers import SGD
-from tensorflow.keras.preprocessing.image import ImageDataGenerator
+import time
+import numpy as np
 
 
 def load_dataset():
@@ -21,12 +22,19 @@ def load_dataset():
     testY = to_categorical(testY)
     return trainX, trainY, testX, testY
 
-def prep_pixels(train, test):
+def normalise_pixels(train, test):
     train_norm = train.astype('float32')
     test_norm = test.astype('float32')
 
-    train_norm = train_norm / 255.0
-    test_norm = test_norm / 255.0
+    mean = np.mean(train_norm, axis=(0,1,2), keepdims=True)
+    std = np.std(train_norm, axis=(0,1,2), keepdims=True)
+
+    train_norm = (train_norm - mean) / std
+    test_norm = (test_norm - mean) / std
+    print("TRAIIINNN")
+    print(train_norm)
+    print("TESTS")
+    print(test_norm)
 
     return train_norm, test_norm
 
@@ -66,22 +74,35 @@ def summarize_diagnostics(history):
 
     
     filename = sys.argv[0].split('/')[-1]
+    filename = "HEJ"
     plt.savefig(filename + '_plot.png')
     plt.close()
 
 def run_test_harness():
-    trainX, trainY, testX, testY = load_dataset()
-    trainX, testX = prep_pixels(trainX, testX)
-    model = define_model()
-
-    datagen = ImageDataGenerator(width_shift_range=0.1, height_shift_range=0.1, horizontal_flip=True)
-    it_train = datagen.flot(trainX, trainY, batch_size=64)
-    steps = int(trainX, trainY, batch_size=64)
-    history = model.fix_generator(it_train, steps_per_epoch=steps, epochs=100, validation_data=(testX, testY), verbose=0)
+    start_time = time.time()
     
-    _, acc = model.evaluate(testX, testY, verbose=0)
-    print('> %.3f' % (acc * 100.0))
-    summarize_diagnostics(history)
+    trainX, trainY, testX, testY = load_dataset()
+    trainX_subset = trainX[:20]
+    trainY_subset = trainY[:20]
+    testX_subset = testX[:20]
+    testY_subset = testY[:20]
 
+    trainX_subset, testX_subset = normalise_pixels(trainX_subset, testX_subset)
+    # model = define_model()
+    # history = model.fit(trainX_subset, trainY_subset, epochs=10, batch_size=64, validation_data=(testX_subset, testY_subset), verbose=0)
+    # _, acc = model.evaluate(testX_subset, testY_subset, verbose=0)
+    # print('> %.3f' % (acc * 100.0))
+    # summarize_diagnostics(history)
+    
+    # # trainX, testX = prep_pixels(trainX, testX)
+    # # model = define_model()
+    # # history = model.fit(trainX, trainY, epochs=100, batch_size=64, validation_data=(testX, testY), verbose=0)
+    # # _, acc = model.evaluate(testX, testY, verbose=0)
+    # # print('> %.3f' % (acc * 100.0))
+    # # summarize_diagnostics(history)
+    
+    end_time = time.time()
+    execution_time = end_time - start_time
+    print("Execution time:", execution_time)
 
 run_test_harness()

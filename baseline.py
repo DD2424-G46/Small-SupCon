@@ -1,6 +1,6 @@
 import sys
 import os
-os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
+# os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
 from matplotlib import pyplot as plt
 from keras.datasets import cifar10
 from keras.utils import to_categorical
@@ -55,19 +55,25 @@ def define_model():
     return model
 
 def summarize_diagnostics(history):
-    plt.subplot(211)
+    plt.figure(figsize=(15, 5))
+
+    plt.subplot(1, 2, 1)
     plt.title('Cross Entropy Loss')
-    plt.plot(history.history['loss'], color='blue', label='test')
-    plt.plot(history.history['val_loss'], color='orange', label='test')
+    plt.plot(history.history['loss'], color='blue', label='Training set')
+    plt.plot(history.history['val_loss'], color='orange', label='Test set')
+    plt.xlabel('Epoch')
+    plt.ylabel('Loss')
+    plt.legend()
 
-    plt.subplot(212)
+    plt.subplot(1, 2, 2)
     plt.title('Classification Accuracy')
-    plt.plot(history.history['accuracy'], color='blue', label='train')
-    plt.plot(history.history['val_accuracy'], color='orange', label='test')
+    plt.plot(history.history['accuracy'], color='blue', label='Training set')
+    plt.plot(history.history['val_accuracy'], color='orange', label='Test set')
+    plt.xlabel('Epoch')
+    plt.ylabel('Accuracy')
+    plt.legend()
 
-    
     filename = sys.argv[0].split('/')[-1]
-    filename = "HEJ"
     plt.savefig(filename + '_plot.png')
     plt.close()
 
@@ -75,17 +81,27 @@ def run_test_harness():
     start_time = time.time()
     
     trainX, trainY, testX, testY = load_dataset()
-    trainX_subset = trainX[:5000]
-    trainY_subset = trainY[:5000]
-    testX_subset = testX[:5000]
-    testY_subset = testY[:5000]
+    # trainX_subset = trainX[:10000]
+    # trainY_subset = trainY[:10000]
+    # testX_subset = testX[:10000]
+    # testY_subset = testY[:10000]
+    epochs = 100
 
-    trainX_subset, testX_subset = prep_pixels(trainX_subset, testX_subset)
+    trainX, testX = prep_pixels(trainX, testX)
     model = define_model()
-    history = model.fit(trainX_subset, trainY_subset, epochs=10, batch_size=64, validation_data=(testX_subset, testY_subset), verbose=0)
-    _, acc = model.evaluate(testX_subset, testY_subset, verbose=0)
+    history = model.fit(trainX, trainY, epochs=epochs, batch_size=64, validation_data=(testX, testY), verbose=0)
+    _, acc = model.evaluate(testX, testY, verbose=0)
+
+    # trainX_subset, testX_subset = prep_pixels(trainX_subset, testX_subset)
+    # model = define_model()
+    # history = model.fit(trainX_subset, trainY_subset, epochs=epochs, batch_size=64, validation_data=(testX_subset, testY_subset), verbose=0)
+    # _, acc = model.evaluate(testX_subset, testY_subset, verbose=0)
+
+
     print('> %.3f' % (acc * 100.0))
+    print("Nr epochs: ", epochs)
     summarize_diagnostics(history)
+
     
     # trainX, testX = prep_pixels(trainX, testX)
     # model = define_model()

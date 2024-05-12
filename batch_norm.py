@@ -25,16 +25,16 @@ def load_dataset():
 def prep_pixels(train, test):
     train_norm = train.astype('float32')
     test_norm = test.astype('float32')
-    print("TRAIN NORM")
-    print(train_norm)
-    print("TEST NORM")
-    print(test_norm)
+    # print("TRAIN NORM")
+    # print(train_norm)
+    # print("TEST NORM")
+    # print(test_norm)
     train_norm = train_norm / 255.0
     test_norm = test_norm / 255.0
-    print("TRAIN NORM after division")
-    print(train_norm)
-    print("TEST NORM after division")
-    print(test_norm)
+    # print("TRAIN NORM after division")
+    # print(train_norm)
+    # print("TEST NORM after division")
+    # print(test_norm)
 
     return train_norm, test_norm
 
@@ -91,16 +91,21 @@ def summarize_diagnostics(history):
 def run_test_harness():
     trainX, trainY, testX, testY = load_dataset()
     trainX, testX = prep_pixels(trainX, testX)
-    # model = define_model()
 
-    # datagen = ImageDataGenerator(width_shift_range=0.1, height_shift_range=0.1, horizontal_flip=True)
-    # it_train = datagen.flot(trainX, trainY, batch_size=64)
-    # steps = int(trainX, trainY, batch_size=64)
-    # history = model.fix_generator(it_train, steps_per_epoch=steps, epochs=400, validation_data=(testX, testY), verbose=0)
+    # trainX = trainX[:1000]
+    # trainY = trainY[:1000]
+    # testX = testX[:1000]
+    # testY = testY[:1000]
+    model = define_model()
+
+    datagen = ImageDataGenerator(width_shift_range=0.1, height_shift_range=0.1, horizontal_flip=True)
+    it_train = datagen.flow(trainX, trainY, batch_size=265)
+    steps = int(trainX.shape[0]/265)
+    history = model.fit(it_train, steps_per_epoch=steps, epochs=2, validation_data=(testX, testY), verbose=0)
     
-    # _, acc = model.evaluate(testX, testY, verbose=0)
-    # print('> %.3f' % (acc * 100.0))
-    # summarize_diagnostics(history)
+    _, acc = model.evaluate(testX, testY, verbose=0)
+    print('> %.3f' % (acc * 100.0))
+    summarize_diagnostics(history)
 
 
 run_test_harness()

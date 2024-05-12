@@ -58,16 +58,23 @@ def define_model():
     return model
 
 def summarize_diagnostics(history):
-    plt.subplot(211)
+    plt.figure(figsize=(15, 5))
+
+    plt.subplot(1, 2, 1)
     plt.title('Cross Entropy Loss')
-    plt.plot(history.history['loss'], color='blue', label='test')
-    plt.plot(history.history['val_loss'], color='orange', label='test')
+    plt.plot(history.history['loss'], color='blue', label='Training set')
+    plt.plot(history.history['val_loss'], color='orange', label='Test set')
+    plt.xlabel('Epoch')
+    plt.ylabel('Loss')
+    plt.legend()
 
-    plt.subplot(212)
+    plt.subplot(1, 2, 2)
     plt.title('Classification Accuracy')
-    plt.plot(history.history['accuracy'], color='blue', label='train')
-    plt.plot(history.history['val_accuracy'], color='orange', label='test')
-
+    plt.plot(history.history['accuracy'], color='blue', label='Training set')
+    plt.plot(history.history['val_accuracy'], color='orange', label='Test set')
+    plt.xlabel('Epoch')
+    plt.ylabel('Accuracy')
+    plt.legend()
     
     filename = sys.argv[0].split('/')[-1]
     plt.savefig(filename + '_plot.png')
@@ -76,6 +83,10 @@ def summarize_diagnostics(history):
 def run_test_harness():
     trainX, trainY, testX, testY = load_dataset()
     trainX, testX = prep_pixels(trainX, testX)
+    # trainX = trainX[:2000]
+    # trainY = trainY[:2000]
+    # testX = testX[:2000]
+    # testY = testY[:2000]
     model = define_model()
     history = model.fit(trainX, trainY, epochs=100, batch_size=64, validation_data=(testX, testY), verbose=0)
     _, acc = model.evaluate(testX, testY, verbose=0)

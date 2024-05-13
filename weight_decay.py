@@ -1,5 +1,6 @@
 import sys
 import os
+import time
 os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
 from matplotlib import pyplot as plt
 from keras.datasets import cifar10
@@ -9,7 +10,7 @@ from keras.layers import Conv2D
 from keras.layers import MaxPooling2D
 from keras.layers import Dense
 from keras.layers import Flatten
-from keras.layers import l2
+from keras.regularizers import l2
 from keras.optimizers import SGD
 
 
@@ -37,16 +38,16 @@ def define_model():
     model.add(Conv2D(32, (3, 3), activation='relu', kernel_initializer='he_uniform', padding='same', kernel_regularizer=l2(0.001)))
     model.add(MaxPooling2D((2,2)))
     # 2nd VGG block
-    model.add(Conv2D(64, (3, 3), activation='relu', kernel_initializer='he_uniform', padding='same'), kernel_regularizer=l2(0.001))
-    model.add(Conv2D(64, (3, 3), activation='relu', kernel_initializer='he_uniform', padding='same'), kernel_regularizer=l2(0.001))
+    model.add(Conv2D(64, (3, 3), activation='relu', kernel_initializer='he_uniform', padding='same', kernel_regularizer=l2(0.001)))
+    model.add(Conv2D(64, (3, 3), activation='relu', kernel_initializer='he_uniform', padding='same', kernel_regularizer=l2(0.001)))
     model.add(MaxPooling2D((2,2)))
     # 3rd VGG block
-    model.add(Conv2D(128, (3, 3), activation='relu', kernel_initializer='he_uniform', padding='same'), kernel_regularizer=l2(0.001))
-    model.add(Conv2D(128, (3, 3), activation='relu', kernel_initializer='he_uniform', padding='same'), kernel_regularizer=l2(0.001))
+    model.add(Conv2D(128, (3, 3), activation='relu', kernel_initializer='he_uniform', padding='same', kernel_regularizer=l2(0.001)))
+    model.add(Conv2D(128, (3, 3), activation='relu', kernel_initializer='he_uniform', padding='same', kernel_regularizer=l2(0.001)))
     model.add(MaxPooling2D((2,2)))
     	
     model.add(Flatten())
-    model.add(Dense(128, activation='relu', kernel_initializer='he_uniform'), kernel_regularizer=l2(0.001))
+    model.add(Dense(128, activation='relu', kernel_initializer='he_uniform', kernel_regularizer=l2(0.001)))
     model.add(Dense(10, activation='softmax'))
 
     opt = SGD(learning_rate=0.001, momentum=0.9)
@@ -54,22 +55,30 @@ def define_model():
     return model
 
 def summarize_diagnostics(history):
-    plt.subplot(211)
+    plt.figure(figsize=(15, 5))
+    
+    plt.subplot(1, 2, 1)
     plt.title('Cross Entropy Loss')
-    plt.plot(history.history['loss'], color='blue', label='test')
-    plt.plot(history.history['val_loss'], color='orange', label='test')
+    plt.plot(history.history['loss'], color='blue', label='Training set')
+    plt.plot(history.history['val_loss'], color='orange', label='Test set')
+    plt.xlabel('Epoch')
+    plt.ylabel('Loss')
+    plt.legend()
 
-    plt.subplot(212)
+    plt.subplot(1, 2, 2)
     plt.title('Classification Accuracy')
-    plt.plot(history.history['accuracy'], color='blue', label='train')
-    plt.plot(history.history['val_accuracy'], color='orange', label='test')
-
+    plt.plot(history.history['accuracy'], color='blue', label='Training set')
+    plt.plot(history.history['val_accuracy'], color='orange', label='Test set')
+    plt.xlabel('Epoch')
+    plt.ylabel('Accuracy')
+    plt.legend()
     
     filename = sys.argv[0].split('/')[-1]
     plt.savefig(filename + '_plot.png')
     plt.close()
 
 def run_test_harness():
+    start_time = time.time()
     trainX, trainY, testX, testY = load_dataset()
     trainX, testX = prep_pixels(trainX, testX)
     model = define_model()
@@ -77,6 +86,9 @@ def run_test_harness():
     _, acc = model.evaluate(testX, testY, verbose=0)
     print('> %.3f' % (acc * 100.0))
     summarize_diagnostics(history)
+    end_time = time.time()
+    execution_time = end_time - start_time
+    print("Execution time:", execution_time)
 
 
 run_test_harness()

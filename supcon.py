@@ -286,7 +286,8 @@ if __name__ == '__main__': # REFER TO WEBSITE FOR INSPO
     # y_train = y_train[:1000]
     # x_test = x_test[:1000]
     # y_test = y_test[:1000]
-
+    # VALIDATION SET
+    x_val 
 
 
     # Display shapes of train and test datasets

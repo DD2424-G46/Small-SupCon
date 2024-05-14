@@ -45,25 +45,29 @@ def define_model():
     model.add(Conv2D(32, (3, 3), activation='relu', kernel_initializer='he_uniform', padding='same', input_shape=(32, 32, 3)))
     model.add(Conv2D(32, (3, 3), activation='relu', kernel_initializer='he_uniform', padding='same'))
     model.add(MaxPooling2D((2,2)))
-    model.add(Dropout(0.2))
     model.add(BatchNormalization())
+    model.add(Dropout(0.2))
+
     # 2nd VGG block
     model.add(Conv2D(64, (3, 3), activation='relu', kernel_initializer='he_uniform', padding='same'))
     model.add(Conv2D(64, (3, 3), activation='relu', kernel_initializer='he_uniform', padding='same'))
     model.add(MaxPooling2D((2,2)))
-    model.add(Dropout(0.2))
     model.add(BatchNormalization())
+    model.add(Dropout(0.2))
+
     # 3rd VGG block
     model.add(Conv2D(128, (3, 3), activation='relu', kernel_initializer='he_uniform', padding='same'))
     model.add(Conv2D(128, (3, 3), activation='relu', kernel_initializer='he_uniform', padding='same'))
     model.add(MaxPooling2D((2,2)))
-    model.add(Dropout(0.2))
     model.add(BatchNormalization())
+    model.add(Dropout(0.2))
+
     	
     model.add(Flatten())
     model.add(Dense(128, activation='relu', kernel_initializer='he_uniform'))
-    model.add(Dropout(0.2))
     model.add(BatchNormalization())
+    model.add(Dropout(0.2))
+
     model.add(Dense(10, activation='softmax'))
 
     opt = SGD(learning_rate=0.001, momentum=0.9)
@@ -71,20 +75,28 @@ def define_model():
     return model
 
 def summarize_diagnostics(history):
-    plt.subplot(211)
+    plt.figure(figsize=(15, 5))
+
+    plt.subplot(1, 2, 1)
     plt.title('Cross Entropy Loss')
-    plt.plot(history.history['loss'], color='blue', label='test')
-    plt.plot(history.history['val_loss'], color='orange', label='test')
+    plt.plot(history.history['loss'], color='blue', label='Training set')
+    plt.plot(history.history['val_loss'], color='orange', label='Test set')
+    plt.xlabel('Epoch')
+    plt.ylabel('Loss')
+    plt.legend()
 
-    plt.subplot(212)
+    plt.subplot(1, 2, 2)
     plt.title('Classification Accuracy')
-    plt.plot(history.history['accuracy'], color='blue', label='train')
-    plt.plot(history.history['val_accuracy'], color='orange', label='test')
+    plt.plot(history.history['accuracy'], color='blue', label='Training set')
+    plt.plot(history.history['val_accuracy'], color='orange', label='Test set')
+    plt.xlabel('Epoch')
+    plt.ylabel('Accuracy')
+    plt.legend()
 
-    
     filename = sys.argv[0].split('/')[-1]
-    plt.savefig(filename + '_plot.png')
+    plt.savefig(filename + 'BN_then_dropout_plot.png')
     plt.close()
+
 
 def run_test_harness():
     start_time = time.time()
@@ -108,7 +120,7 @@ def run_test_harness():
     history = model.fit(trainX, trainY, epochs=epochs, batch_size=64, validation_data=(testX, testY), verbose=0)
     
 
-    print("Dropout then BN")
+    print("BN then dropout")
     print("epochs:")
     print(epochs)
 

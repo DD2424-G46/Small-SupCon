@@ -294,7 +294,7 @@ if __name__ == '__main__': # REFER TO WEBSITE FOR INSPO
     print(f"x_train shape: {x_train.shape} - y_train shape: {y_train.shape}")
     print(f"x_test shape: {x_test.shape} - y_test shape: {y_test.shape}")
 
-    data_augmentation = keras.Sequential(
+    data_augmentation = keras.Sequential( #CHANGE AUGMENTATION BASED ON STUDY?
         [
             layers.Normalization(),
             layers.RandomFlip("horizontal"),

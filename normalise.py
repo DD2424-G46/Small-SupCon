@@ -1,6 +1,6 @@
 import sys
 import os
-os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
+# os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
 from matplotlib import pyplot as plt
 from keras.datasets import cifar10
 from keras.utils import to_categorical

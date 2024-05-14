@@ -77,7 +77,6 @@ def define_model():
     return model
 
 def summarize_diagnostics(history):
-    plt.subplot(1, 2, 1)
     plt.figure(figsize=(15, 5))
     
     plt.subplot(1, 2, 1)

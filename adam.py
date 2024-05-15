@@ -118,5 +118,4 @@ def run_test_harness():
     execution_time = end_time - start_time
     print("Execution time:", execution_time)
 
-
 run_test_harness()

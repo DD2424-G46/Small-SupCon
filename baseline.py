@@ -1,5 +1,12 @@
 import sys
 import os
+os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
+from matplotlib import pyplot as plt
+from keras.datasets import cifar10
+from keras.utils import to_categorical
+from keras.models import Sequential
+import sys
+import os
 # os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
 from matplotlib import pyplot as plt
 from keras.datasets import cifar10
@@ -113,5 +120,6 @@ def run_test_harness():
     end_time = time.time()
     execution_time = end_time - start_time
     print("Execution time:", execution_time)
+
 
 run_test_harness()

@@ -286,14 +286,15 @@ if __name__ == '__main__': # REFER TO WEBSITE FOR INSPO
     # y_train = y_train[:1000]
     # x_test = x_test[:1000]
     # y_test = y_test[:1000]
-
+    # VALIDATION SET
+    x_val 
 
 
     # Display shapes of train and test datasets
     print(f"x_train shape: {x_train.shape} - y_train shape: {y_train.shape}")
     print(f"x_test shape: {x_test.shape} - y_test shape: {y_test.shape}")
 
-    data_augmentation = keras.Sequential(
+    data_augmentation = keras.Sequential( #CHANGE AUGMENTATION BASED ON STUDY?
         [
             layers.Normalization(),
             layers.RandomFlip("horizontal"),

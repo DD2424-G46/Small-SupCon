@@ -1,5 +1,6 @@
 import sys
 import os
+import time
 os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
 from matplotlib import pyplot as plt
 from keras.datasets import cifar10
@@ -10,8 +11,9 @@ from keras.layers import MaxPooling2D
 from keras.layers import Dense
 from keras.layers import Flatten
 from keras.layers import Dropout
+from tensorflow.keras.preprocessing.image import ImageDataGenerator
+from keras.layers import BatchNormalization
 from keras.optimizers import SGD
-
 
 def load_dataset():
     (trainX, trainY), (testX, testY) = cifar10.load_data()
@@ -24,7 +26,6 @@ def load_dataset():
 def prep_pixels(train, test):
     train_norm = train.astype('float32')
     test_norm = test.astype('float32')
-
     train_norm = train_norm / 255.0
     test_norm = test_norm / 255.0
 
@@ -36,21 +37,21 @@ def define_model():
     model.add(Conv2D(32, (3, 3), activation='relu', kernel_initializer='he_uniform', padding='same', input_shape=(32, 32, 3)))
     model.add(Conv2D(32, (3, 3), activation='relu', kernel_initializer='he_uniform', padding='same'))
     model.add(MaxPooling2D((2,2)))
-    model.add(Dropout(0.2))
+    model.add(BatchNormalization())
     # 2nd VGG block
     model.add(Conv2D(64, (3, 3), activation='relu', kernel_initializer='he_uniform', padding='same'))
     model.add(Conv2D(64, (3, 3), activation='relu', kernel_initializer='he_uniform', padding='same'))
     model.add(MaxPooling2D((2,2)))
-    model.add(Dropout(0.2))
+    model.add(BatchNormalization())
     # 3rd VGG block
     model.add(Conv2D(128, (3, 3), activation='relu', kernel_initializer='he_uniform', padding='same'))
     model.add(Conv2D(128, (3, 3), activation='relu', kernel_initializer='he_uniform', padding='same'))
     model.add(MaxPooling2D((2,2)))
-    model.add(Dropout(0.2))
+    model.add(BatchNormalization())
     	
     model.add(Flatten())
     model.add(Dense(128, activation='relu', kernel_initializer='he_uniform'))
-    model.add(Dropout(0.2))
+    model.add(BatchNormalization())
     model.add(Dense(10, activation='softmax'))
 
     opt = SGD(learning_rate=0.001, momentum=0.9)
@@ -59,7 +60,7 @@ def define_model():
 
 def summarize_diagnostics(history):
     plt.figure(figsize=(15, 5))
-
+    
     plt.subplot(1, 2, 1)
     plt.title('Cross Entropy Loss')
     plt.plot(history.history['loss'], color='blue', label='Training set')
@@ -81,17 +82,24 @@ def summarize_diagnostics(history):
     plt.close()
 
 def run_test_harness():
+    start_time = time.time()
     trainX, trainY, testX, testY = load_dataset()
     trainX, testX = prep_pixels(trainX, testX)
+    model = define_model()
+
     # trainX = trainX[:2000]
     # trainY = trainY[:2000]
     # testX = testX[:2000]
     # testY = testY[:2000]
-    model = define_model()
-    history = model.fit(trainX, trainY, epochs=100, batch_size=64, validation_data=(testX, testY), verbose=0)
+
+    history = model.fit(trainX, trainY, epochs=100, batch_size= 64, validation_data=(testX, testY), verbose=0)
+    
     _, acc = model.evaluate(testX, testY, verbose=0)
     print('> %.3f' % (acc * 100.0))
     summarize_diagnostics(history)
+    end_time = time.time()
+    execution_time = end_time - start_time
+    print("Execution time:", execution_time)
 
 
 run_test_harness()

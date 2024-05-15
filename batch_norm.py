@@ -1,5 +1,6 @@
 import sys
 import os
+import time
 os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
 from matplotlib import pyplot as plt
 from keras.datasets import cifar10
@@ -39,73 +40,87 @@ def prep_pixels(train, test):
     return train_norm, test_norm
 
 def define_model():
-    model = Sequential()
+
     # 1st VGG block
+    model = Sequential()
     model.add(Conv2D(32, (3, 3), activation='relu', kernel_initializer='he_uniform', padding='same', input_shape=(32, 32, 3)))
     model.add(BatchNormalization())
     model.add(Conv2D(32, (3, 3), activation='relu', kernel_initializer='he_uniform', padding='same'))
     model.add(BatchNormalization())
-    model.add(MaxPooling2D((2,2)))
+    model.add(MaxPooling2D((2, 2)))
     model.add(Dropout(0.2))
+
     # 2nd VGG block
     model.add(Conv2D(64, (3, 3), activation='relu', kernel_initializer='he_uniform', padding='same'))
     model.add(BatchNormalization())
     model.add(Conv2D(64, (3, 3), activation='relu', kernel_initializer='he_uniform', padding='same'))
     model.add(BatchNormalization())
-    model.add(MaxPooling2D((2,2)))
-    model.add(Dropout(0.2))
+    model.add(MaxPooling2D((2, 2)))
+    model.add(Dropout(0.3))
+
     # 3rd VGG block
     model.add(Conv2D(128, (3, 3), activation='relu', kernel_initializer='he_uniform', padding='same'))
     model.add(BatchNormalization())
     model.add(Conv2D(128, (3, 3), activation='relu', kernel_initializer='he_uniform', padding='same'))
     model.add(BatchNormalization())
-    model.add(MaxPooling2D((2,2)))
-    model.add(Dropout(0.2))
-    	
+    model.add(MaxPooling2D((2, 2)))
+    model.add(Dropout(0.4))
+
     model.add(Flatten())
     model.add(Dense(128, activation='relu', kernel_initializer='he_uniform'))
     model.add(BatchNormalization())
-    model.add(Dropout(0.2))
+    model.add(Dropout(0.5))
     model.add(Dense(10, activation='softmax'))
-
+    
     opt = SGD(learning_rate=0.001, momentum=0.9)
     model.compile(optimizer=opt, loss='categorical_crossentropy', metrics=['accuracy'])
     return model
 
 def summarize_diagnostics(history):
-    plt.subplot(211)
+    plt.figure(figsize=(15, 5))
+    
+    plt.subplot(1, 2, 1)
     plt.title('Cross Entropy Loss')
-    plt.plot(history.history['loss'], color='blue', label='test')
-    plt.plot(history.history['val_loss'], color='orange', label='test')
+    plt.plot(history.history['loss'], color='blue', label='Training set')
+    plt.plot(history.history['val_loss'], color='orange', label='Test set')
+    plt.xlabel('Epoch')
+    plt.ylabel('Loss')
+    plt.legend()
 
-    plt.subplot(212)
+    plt.subplot(1, 2, 2)
     plt.title('Classification Accuracy')
-    plt.plot(history.history['accuracy'], color='blue', label='train')
-    plt.plot(history.history['val_accuracy'], color='orange', label='test')
-
+    plt.plot(history.history['accuracy'], color='blue', label='Training set')
+    plt.plot(history.history['val_accuracy'], color='orange', label='Test set')
+    plt.xlabel('Epoch')
+    plt.ylabel('Accuracy')
+    plt.legend()
     
     filename = sys.argv[0].split('/')[-1]
     plt.savefig(filename + '_plot.png')
     plt.close()
 
 def run_test_harness():
+    start_time = time.time()
     trainX, trainY, testX, testY = load_dataset()
     trainX, testX = prep_pixels(trainX, testX)
 
-    # trainX = trainX[:1000]
-    # trainY = trainY[:1000]
-    # testX = testX[:1000]
-    # testY = testY[:1000]
+    # trainX = trainX[:2000]
+    # trainY = trainY[:2000]
+    # testX = testX[:2000]
+    # testY = testY[:2000]
     model = define_model()
 
     datagen = ImageDataGenerator(width_shift_range=0.1, height_shift_range=0.1, horizontal_flip=True)
-    it_train = datagen.flow(trainX, trainY, batch_size=265)
-    steps = int(trainX.shape[0]/265)
-    history = model.fit(it_train, steps_per_epoch=steps, epochs=2, validation_data=(testX, testY), verbose=0)
+    it_train = datagen.flow(trainX, trainY, batch_size=64)
+    steps = int(trainX.shape[0]/64)
+    history = model.fit(it_train, steps_per_epoch=steps, epochs=400, validation_data=(testX, testY), verbose=0)
     
     _, acc = model.evaluate(testX, testY, verbose=0)
     print('> %.3f' % (acc * 100.0))
     summarize_diagnostics(history)
+    end_time = time.time()
+    execution_time = end_time - start_time
+    print("Execution time:", execution_time)
 
 
 run_test_harness()

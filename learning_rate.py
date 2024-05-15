@@ -54,41 +54,47 @@ def define_model():
     model.add(Dense(128, activation='relu', kernel_initializer='he_uniform'))
     model.add(Dense(10, activation='softmax'))
 
-    decay_steps = 1000
-    initial_learning_rate = 0
-    warmup_steps = 1000
-    target_learning_rate = 0.1
-    cosine_decay = CosineDecay(initial_learning_rate, decay_steps, warmup_target=target_learning_rate, warmup_steps=warmup_steps)
+    # decay_steps = 1000
+    # initial_learning_rate = 0
+    # warmup_steps = 1000
+    # target_learning_rate = 0.1
+    # cosine_decay = CosineDecay(initial_learning_rate, decay_steps, warmup_target=target_learning_rate, warmup_steps=warmup_steps)
 
     initial_learning_rate = 0.1
     decay_steps = 100000,
     decay_rate = 0.96
     step_decay = ExponentialDecay(initial_learning_rate=initial_learning_rate, decay_steps=decay_steps, decay_rate=decay_rate, staircase=True)
 
-    initial_learning_rate = 0.1
-    first_decay_steps = 1000
-    cosine_decay_restarts = CosineDecayRestarts(initial_learning_rate=initial_learning_rate, first_decay_steps=first_decay_steps)
+    # initial_learning_rate = 0.1
+    # first_decay_steps = 1000
+    # cosine_decay_restarts = CosineDecayRestarts(initial_learning_rate=initial_learning_rate, first_decay_steps=first_decay_steps)
 
     # ANOTHER ONE?
 
-    opt = SGD(learning_rate=cosine_decay, momentum=0.9)
+    opt = SGD(learning_rate=step_decay)
     model.compile(optimizer=opt, loss='categorical_crossentropy', metrics=['accuracy'])
     return model
 
 def summarize_diagnostics(history):
-    plt.subplot(211)
+    plt.figure(figsize=(15, 5))
+
+    plt.subplot(1, 2, 1)
     plt.title('Cross Entropy Loss')
-    plt.plot(history.history['loss'], color='blue', label='test')
-    plt.plot(history.history['val_loss'], color='orange', label='test')
+    plt.plot(history.history['loss'], color='blue', label='Training set')
+    plt.plot(history.history['val_loss'], color='orange', label='Test set')
+    plt.xlabel('Epoch')
+    plt.ylabel('Loss')
+    plt.legend()
 
-    plt.subplot(212)
+    plt.subplot(1, 2, 2)
     plt.title('Classification Accuracy')
-    plt.plot(history.history['accuracy'], color='blue', label='train')
-    plt.plot(history.history['val_accuracy'], color='orange', label='test')
-
+    plt.plot(history.history['accuracy'], color='blue', label='Training set')
+    plt.plot(history.history['val_accuracy'], color='orange', label='Test set')
+    plt.xlabel('Epoch')
+    plt.ylabel('Accuracy')
+    plt.legend()
     
     filename = sys.argv[0].split('/')[-1]
-    filename = "HEJ"
     plt.savefig(filename + '_plot.png')
     plt.close()
 
@@ -96,27 +102,21 @@ def run_test_harness():
     start_time = time.time()
     
     trainX, trainY, testX, testY = load_dataset()
-    trainX_subset = trainX[:5000]
-    trainY_subset = trainY[:5000]
-    testX_subset = testX[:5000]
-    testY_subset = testY[:5000]
+    trainX, testX = prep_pixels(trainX, testX)
+    # trainX = trainX[:5000]
+    # trainY = trainY[:5000]
+    # testX = testX[:5000]
+    # testY = testY[:5000]
 
-    trainX_subset, testX_subset = prep_pixels(trainX_subset, testX_subset)
     model = define_model()
-    history = model.fit(trainX_subset, trainY_subset, epochs=10, batch_size=64, validation_data=(testX_subset, testY_subset), verbose=0)
-    _, acc = model.evaluate(testX_subset, testY_subset, verbose=0)
+    history = model.fit(trainX, trainY, epochs=100, batch_size=64, validation_data=(testX, testY), verbose=0)
+    _, acc = model.evaluate(testX, testY, verbose=0)
     print('> %.3f' % (acc * 100.0))
     summarize_diagnostics(history)
-    
-    # trainX, testX = prep_pixels(trainX, testX)
-    # model = define_model()
-    # history = model.fit(trainX, trainY, epochs=100, batch_size=64, validation_data=(testX, testY), verbose=0)
-    # _, acc = model.evaluate(testX, testY, verbose=0)
-    # print('> %.3f' % (acc * 100.0))
-    # summarize_diagnostics(history)
     
     end_time = time.time()
     execution_time = end_time - start_time
     print("Execution time:", execution_time)
+    print("OBS NO MOMENTUM")
 
 run_test_harness()

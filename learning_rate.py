@@ -71,7 +71,7 @@ def define_model():
 
     # ANOTHER ONE?
 
-    opt = SGD(learning_rate=step_decay, momentum=0.9)
+    opt = SGD(learning_rate=step_decay)
     model.compile(optimizer=opt, loss='categorical_crossentropy', metrics=['accuracy'])
     return model
 
@@ -117,5 +117,6 @@ def run_test_harness():
     end_time = time.time()
     execution_time = end_time - start_time
     print("Execution time:", execution_time)
+    print("OBS NO MOMENTUM")
 
 run_test_harness()

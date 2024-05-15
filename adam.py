@@ -55,8 +55,8 @@ def define_model():
     model.add(Dense(10, activation='softmax'))
 
     # Adam instead of SGD
-    opt = Adam(learning_rate=0.001, beta_1=0.9, beta_2=0.999, epsilon=1e-7)
-    # opt = AdamW(learning_rate=0.001, beta_1=0.9, beta_2=0.999, epsilon=1e-7, weight_decay=0.01)
+    # opt = Adam(learning_rate=0.001, beta_1=0.9, beta_2=0.999, epsilon=1e-7)
+    opt = AdamW(learning_rate=0.001, beta_1=0.9, beta_2=0.999, epsilon=1e-7, weight_decay=0.01)
     model.compile(optimizer=opt, loss='categorical_crossentropy', metrics=['accuracy'])
     return model
 
@@ -80,25 +80,27 @@ def summarize_diagnostics(history):
     plt.legend()
 
     filename = sys.argv[0].split('/')[-1]
-    plt.savefig(filename + '_plot.png')
+    plt.savefig(filename + 'W_plot.png')
     plt.close()
 
 def run_test_harness():
     start_time = time.time()
     
     trainX, trainY, testX, testY = load_dataset()
-    trainX = trainX[:20]
-    trainY = trainY[:20]
-    testX = testX[:20]
-    testY = testY[:20]
-    epochs = 2
+    # trainX = trainX[:20]
+    # trainY = trainY[:20]
+    # testX = testX[:20]
+    # testY = testY[:20]
+    epochs = 100
 
     trainX, testX = prep_pixels(trainX, testX)
     model = define_model()
     history = model.fit(trainX, trainY, epochs=epochs, batch_size=64, validation_data=(testX, testY), verbose=0)
     _, acc = model.evaluate(testX, testY, verbose=0)
-    print('> %.3f' % (acc * 100.0))
-    summarize_diagnostics(history)
+
+
+    # print('> %.3f' % (acc * 100.0))
+    # summarize_diagnostics(history)
     
     # trainX, testX = prep_pixels(trainX, testX)
     # model = define_model()
@@ -107,7 +109,7 @@ def run_test_harness():
     # print('> %.3f' % (acc * 100.0))
     # summarize_diagnostics(history)
     
-    print("With Adam:")
+    print("With AdamW:")
     print('> %.3f' % (acc * 100.0))
     print("Nr epochs: ", epochs)
     summarize_diagnostics(history)

@@ -1,7 +1,7 @@
 import sys
 import os
 import time
-os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
+from tensorflow import keras
 from matplotlib import pyplot as plt
 from keras.datasets import cifar10
 from keras.utils import to_categorical
@@ -72,8 +72,7 @@ def define_model():
     model.add(Dropout(0.5))
     model.add(Dense(10, activation='softmax'))
     
-    opt = SGD(learning_rate=0.001, momentum=0.9)
-    model.compile(optimizer=opt, loss='categorical_crossentropy', metrics=['accuracy'])
+    model.compile(optimizer=keras.optimizers.Adam(0.001), loss='categorical_crossentropy', metrics=['accuracy'])
     return model
 
 def summarize_diagnostics(history):
@@ -109,18 +108,18 @@ def run_test_harness():
     # testX = testX[:2000]
     # testY = testY[:2000]
     model = define_model()
-
-    datagen = ImageDataGenerator(width_shift_range=0.1, height_shift_range=0.1, horizontal_flip=True)
-    it_train = datagen.flow(trainX, trainY, batch_size=64)
-    steps = int(trainX.shape[0]/64)
-    history = model.fit(it_train, steps_per_epoch=steps, epochs=400, validation_data=(testX, testY), verbose=0)
+    print(model.summary())
+    # datagen = ImageDataGenerator(width_shift_range=0.1, height_shift_range=0.1, horizontal_flip=True)
+    # it_train = datagen.flow(trainX, trainY, batch_size=64)
+    # steps = int(trainX.shape[0]/64)
+    # history = model.fit(it_train, steps_per_epoch=steps, epochs=400, validation_data=(testX, testY), verbose=0)
     
-    _, acc = model.evaluate(testX, testY, verbose=0)
-    print('> %.3f' % (acc * 100.0))
-    summarize_diagnostics(history)
-    end_time = time.time()
-    execution_time = end_time - start_time
-    print("Execution time:", execution_time)
+    # _, acc = model.evaluate(testX, testY, verbose=0)
+    # print('> %.3f' % (acc * 100.0))
+    # summarize_diagnostics(history)
+    # end_time = time.time()
+    # execution_time = end_time - start_time
+    # print("Execution time:", execution_time)
 
 
 run_test_harness()

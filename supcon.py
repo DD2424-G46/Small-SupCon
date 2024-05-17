@@ -14,6 +14,7 @@ from keras.models import Sequential
 from keras.layers import Conv2D
 from keras.layers import MaxPooling2D
 from keras.layers import Dense
+from keras.layers import BatchNormalization
 from keras.layers import Flatten
 from keras.optimizers import SGD
 from keras.layers import Dropout
@@ -27,11 +28,15 @@ tf.random.set_seed(42)
 np.random.seed(42)
 EXPERIMENTAL = False
 
-def prep_pixels(train, test):
+def normalise_pixels(train, test):
     train_norm = train.astype('float32')
     test_norm = test.astype('float32')
-    train_norm = train_norm / 255.0
-    test_norm = test_norm / 255.0
+
+    mean = np.mean(train_norm, axis=(0,1,2), keepdims=True)
+    std = np.std(train_norm, axis=(0,1,2), keepdims=True)
+
+    train_norm = (train_norm - mean) / std
+    test_norm = (test_norm - mean) / std
 
     return train_norm, test_norm
 
@@ -81,9 +86,9 @@ def create_classifier(encoder, trainable=True):
 
     inputs = keras.Input(shape=input_shape)
     features = encoder(inputs)
-    features = layers.Dropout(dropout_rate)(features)
-    features = layers.Dense(hidden_units, activation="relu")(features)
-    features = layers.Dropout(dropout_rate)(features)
+    features = layers.Dense(projection_units, activation="relu", kernel_initializer='he_uniform')(features)
+    features = layers.BatchNormalization()(features)
+    features = layers.Dropout(0.5)(features)
     outputs = layers.Dense(num_classes, activation="softmax")(features)
 
     model = keras.Model(inputs=inputs, outputs=outputs, name="cifar10-classifier")
@@ -92,7 +97,7 @@ def create_classifier(encoder, trainable=True):
         loss=keras.losses.SparseCategoricalCrossentropy(),
         metrics=[keras.metrics.SparseCategoricalAccuracy()],
     )
-    return model    
+    return model
 
 
 class SupConLoss(keras.losses.Loss): # supKån()
@@ -172,7 +177,7 @@ def add_projection_head(encoder):
 #     accuracy = classifier.evaluate(x_test, y_test)[1]
 #     print(f"Test accuracy: {round(accuracy * 100, 2)}%")
 
-def summarize_diagnostics(history, loss_title, acc_title):
+def summarize_diagnostics(history, loss_title, acc_title, accuracy):
     plt.figure(figsize=(15, 5))
     
     plt.subplot(1, 2, 1)
@@ -192,11 +197,11 @@ def summarize_diagnostics(history, loss_title, acc_title):
         plt.legend()
     
     filename = sys.argv[0].split('/')[-1]
-    plt.savefig(filename + '_' + loss_title + '_tau=' + str(temperature) + '_plot.png')
+    plt.savefig('results/' + filename + '_' + loss_title + '_tau=' + str(temperature) + '_batch_size=' + str(batch_size) + '_acc=' + str(accuracy) + '_plot.png')
     plt.close()
 
 
-def train_supcon(x_train, y_train, x_test, y_test):
+def train_supcon(x_train, y_train, x_test, y_test, x_val, y_val):
     # Pre-training encoder
     encoder = create_CNN()
 
@@ -207,6 +212,7 @@ def train_supcon(x_train, y_train, x_test, y_test):
     )
 
     #encoder_with_projection_head.summary()
+
     # Create a TensorBoard callback
     # logs = "logs/" + datetime.now().strftime("%Y%m%d-%H%M%S")
 
@@ -216,22 +222,23 @@ def train_supcon(x_train, y_train, x_test, y_test):
     
 
     supcon_history = encoder_with_projection_head.fit(
-        it_train, steps_per_epoch=steps, epochs=num_epochs, validation_data=(x_test, y_test)#, validation_split=0.1#, callbacks=[tboard_callback], #verbose=0
+        x_train, y_train, batch_size=batch_size, epochs=num_epochs, validation_data=(x_val, y_val)#, validation_split=0.1#, callbacks=[tboard_callback], #verbose=0
     )
 
     # Train classifier with frozen encoder
     classifier = create_classifier(encoder, trainable=False)
-
-    fully_connected_history = classifier.fit(it_train, steps_per_epoch=steps, epochs=num_epochs, validation_data=(x_test, y_test)#, validation_split=0.1, #verbose=0
+    # print(classifier.summary())
+    fully_connected_history = classifier.fit(x_train, y_train, batch_size=batch_size, epochs=num_epochs, validation_data=(x_val, y_val)#, validation_split=0.1, #verbose=0
                              )
 
     # print(supcon_history.history.keys())
     # print(fully_connected_history.history.keys())
-    summarize_diagnostics(supcon_history, "SupCon Loss", "SupCon Accuracy")
-    summarize_diagnostics(fully_connected_history,"FC Cross-Entropy Loss", "FC Cross-Entropy Accuracy")
-
     accuracy = classifier.evaluate(x_test, y_test)[1]
     print(f"Test accuracy: {round(accuracy * 100, 2)}%")
+    summarize_diagnostics(supcon_history, "SupCon Loss", "SupCon Accuracy", accuracy)
+    summarize_diagnostics(fully_connected_history,"FC Cross-Entropy Loss", "FC Cross-Entropy Accuracy", accuracy)
+
+    
 
 def experiment():
     device_name = tf.test.gpu_device_name()
@@ -264,48 +271,42 @@ if __name__ == '__main__': # REFER TO WEBSITE FOR INSPO
     # batch_size = 1000
     hidden_units = 512
     projection_units = 128
-    num_epochs = 100
+    num_epochs = 2
     dropout_rate = 0.5
-    temperature = 0.05
+    temperature = 0.06
 
-     # Load the train and test data splits
+    # Load the train and test data splits
     (x_train, y_train), (x_test, y_test) = keras.datasets.cifar10.load_data()
 
-    # SUBSET?
-    # x_train = x_train[:5000]
-    # y_train = y_train[:5000]
-    # x_test = x_test[:5000]
-    # y_test = y_test[:5000]
-    # VALIDATION SET
-    # x_val 
+    # Pre-processing
+    x_train, x_test = normalise_pixels(x_train, x_test)
+
+
+    # Slice out validation data
+    x_val = x_train[45000:50000]
+    y_val = y_train[45000:50000]
+
+    x_train = x_train[:45000]
+    y_train = y_train[:45000]
 
 
     # Display shapes of train and test datasets
     print(f"x_train shape: {x_train.shape} - y_train shape: {y_train.shape}")
     print(f"x_test shape: {x_test.shape} - y_test shape: {y_test.shape}")
-
-    # data_augmentation = keras.Sequential( #CHANGE AUGMENTATION BASED ON STUDY?
-    #     [
-    #         layers.Normalization(),
-    #         layers.RandomFlip("horizontal"),
-    #         layers.RandomRotation(0.02),
-    #     ]
-    # )
+    print(f"x_val shape: {x_val.shape} - y_val shape: {y_val.shape}")
 
 
-    # # Setting the state of the normalization layer.
-
-    # data_augmentation.layers[0].adapt(x_train)
-    x_train, x_test = prep_pixels(x_train, x_test)
-
-    datagen = ImageDataGenerator(width_shift_range=0.1, height_shift_range=0.1, horizontal_flip=True)
-    it_train = datagen.flow(x_train, y_train, batch_size=batch_size)
-    steps = int(x_train.shape[0]/batch_size)
+    data_augmentation = keras.Sequential( #CHANGE AUGMENTATION BASED ON STUDY?
+        [
+            layers.RandomFlip("horizontal"),
+            layers.RandomRotation(0.02),
+        ]
+    )
 
     if EXPERIMENTAL:
         experiment()
     else:
-        train_supcon(x_train, y_train, x_test, y_test)
+        train_supcon(x_train, y_train, x_test, y_test, x_val, y_val)
 
     end_time = time.time()
     execution_time = end_time - start_time

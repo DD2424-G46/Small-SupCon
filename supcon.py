@@ -1,9 +1,9 @@
-import os
 import sys
-os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
 from matplotlib import pyplot as plt
+import logging, os
+logging.disable(logging.WARNING)
+os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3" # Surpress some tensorflow messages 
 import tensorflow as tf
-# import tensorflow_addons as tfa
 import numpy as np
 from tensorflow import keras
 from tensorflow.keras import layers
@@ -18,26 +18,33 @@ from keras.layers import Flatten
 from keras.optimizers import SGD
 from keras.layers import Dropout
 from keras.layers import BatchNormalization
+from tensorflow.keras.preprocessing.image import ImageDataGenerator
 import time
-
-from concurrent.futures import ThreadPoolExecutor
+from datetime import datetime
 
 # Set the seed
 tf.random.set_seed(42)
 np.random.seed(42)
 EXPERIMENTAL = False
-tf.config.optimizer.set_jit(True)  # Enable XLA JIT compilation
 
-def create_encoder():
-    resnet = keras.applications.ResNet50V2(
-        include_top=False, weights=None, input_shape=input_shape, pooling="avg"
-    )
+def prep_pixels(train, test):
+    train_norm = train.astype('float32')
+    test_norm = test.astype('float32')
+    train_norm = train_norm / 255.0
+    test_norm = test_norm / 255.0
 
-    inputs = keras.Input(shape=input_shape)
-    augmented = data_augmentation(inputs)
-    outputs = resnet(augmented)
-    model = keras.Model(inputs=inputs, outputs=outputs, name="cifar10-encoder")
-    return model
+    return train_norm, test_norm
+
+# def create_encoder():
+#     resnet = keras.applications.ResNet50V2(
+#         include_top=False, weights=None, input_shape=input_shape, pooling="avg"
+#     )
+
+#     inputs = keras.Input(shape=input_shape)
+#     augmented = data_augmentation(inputs)
+#     outputs = resnet(augmented)
+#     model = keras.Model(inputs=inputs, outputs=outputs, name="cifar10-encoder")
+#     return model
 
 def create_CNN():
     model = Sequential()
@@ -64,13 +71,7 @@ def create_CNN():
     model.add(Dropout(0.2))
     	
     model.add(Flatten())
-    # model.add(Dense(128, activation='relu', kernel_initializer='he_uniform'))
-    # model.add(BatchNormalization())
-    # model.add(Dropout(0.2))
-    # model.add(Dense(10, activation='softmax'))
 
-    # opt = SGD(learning_rate=0.001, momentum=0.9)
-    # model.compile(optimizer=opt, loss='categorical_crossentropy', metrics=['accuracy'])
     return model
 
 def create_classifier(encoder, trainable=True):
@@ -87,7 +88,7 @@ def create_classifier(encoder, trainable=True):
 
     model = keras.Model(inputs=inputs, outputs=outputs, name="cifar10-classifier")
     model.compile(
-        optimizer=keras.optimizers.legacy.Adam(learning_rate),
+        optimizer=keras.optimizers.Adam(learning_rate),
         loss=keras.losses.SparseCategoricalCrossentropy(),
         metrics=[keras.metrics.SparseCategoricalAccuracy()],
     )
@@ -99,21 +100,21 @@ class SupConLoss(keras.losses.Loss): # supKån()
         super().__init__(name=name)
         self.temperature = temperature
         
-    @tf.function(experimental_compile=True)
     def __call__(self, labels, feature_vectors, sample_weight=None): # feature_vectors = z
-        
-        normalised_fv = tf.math.l2_normalize(feature_vectors, axis=1)
-
+         
         labels_actual = tf.squeeze(labels)
+        one_hot_labels = tf.one_hot(labels_actual, num_classes) 
+        one_hot_labels = tf.cast(one_hot_labels, tf.float32)
+        pos_mask = tf.matmul(one_hot_labels, one_hot_labels, transpose_b=True)
+        pos_mask = pos_mask - tf.linalg.diag(tf.linalg.diag_part(pos_mask))
+
+
+        normalised_fv = tf.math.l2_normalize(feature_vectors, axis=1)
         normalised_fv = tf.cast(normalised_fv, tf.float32)
 
         similarity_matrix = tf.matmul(normalised_fv, normalised_fv, transpose_b=True)
 
-        one_hot_labels = tf.one_hot(labels_actual, num_classes) 
-        one_hot_labels = tf.cast(one_hot_labels, tf.float32)
         
-        pos_mask = tf.matmul(one_hot_labels, one_hot_labels, transpose_b=True)
-        pos_mask = pos_mask - tf.linalg.diag(tf.linalg.diag_part(pos_mask))
 
         pos_similarity_matrix = tf.math.multiply(similarity_matrix, pos_mask)
     
@@ -158,18 +159,18 @@ def add_projection_head(encoder):
     )
     return model
 
-def train_baseline(x_train, y_train, x_test, y_test):
-    encoder = create_encoder()
+# def train_baseline(x_train, y_train, x_test, y_test):
+#     encoder = create_encoder()
 
-    # encoder.summary()
-    classifier = create_classifier(encoder)
-    classifier.summary()
+#     # encoder.summary()
+#     classifier = create_classifier(encoder)
+#     classifier.summary()
 
 
-    history = classifier.fit(x=x_train, y=y_train, batch_size=batch_size, epochs=num_epochs)
+#     history = classifier.fit(x=x_train, y=y_train, batch_size=batch_size, epochs=num_epochs)
 
-    accuracy = classifier.evaluate(x_test, y_test)[1]
-    print(f"Test accuracy: {round(accuracy * 100, 2)}%")
+#     accuracy = classifier.evaluate(x_test, y_test)[1]
+#     print(f"Test accuracy: {round(accuracy * 100, 2)}%")
 
 def summarize_diagnostics(history, loss_title, acc_title):
     plt.figure(figsize=(15, 5))
@@ -197,24 +198,31 @@ def summarize_diagnostics(history, loss_title, acc_title):
 
 def train_supcon(x_train, y_train, x_test, y_test):
     # Pre-training encoder
-    encoder = create_encoder()
+    encoder = create_CNN()
 
     encoder_with_projection_head = add_projection_head(encoder)
     encoder_with_projection_head.compile(
-        optimizer=keras.optimizers.legacy.Adam(learning_rate),
+        optimizer=keras.optimizers.Adam(learning_rate),
         loss=SupConLoss(temperature)
     )
 
     #encoder_with_projection_head.summary()
+    # Create a TensorBoard callback
+    # logs = "logs/" + datetime.now().strftime("%Y%m%d-%H%M%S")
+
+    # tboard_callback = tf.keras.callbacks.TensorBoard(log_dir = logs,
+    #                                                 histogram_freq = 1,
+    #                                                 profile_batch = '500,520')
+    
 
     supcon_history = encoder_with_projection_head.fit(
-        x=x_train, y=y_train, batch_size=batch_size, epochs=num_epochs, validation_split=0.1, #verbose=0
+        it_train, steps_per_epoch=steps, epochs=num_epochs, validation_data=(x_test, y_test)#, validation_split=0.1#, callbacks=[tboard_callback], #verbose=0
     )
 
     # Train classifier with frozen encoder
     classifier = create_classifier(encoder, trainable=False)
 
-    fully_connected_history = classifier.fit(x=x_train, y=y_train, batch_size=batch_size, epochs=num_epochs, validation_split=0.1, #verbose=0
+    fully_connected_history = classifier.fit(it_train, steps_per_epoch=steps, epochs=num_epochs, validation_data=(x_test, y_test)#, validation_split=0.1, #verbose=0
                              )
 
     # print(supcon_history.history.keys())
@@ -226,13 +234,10 @@ def train_supcon(x_train, y_train, x_test, y_test):
     print(f"Test accuracy: {round(accuracy * 100, 2)}%")
 
 def experiment():
-    encoder = create_encoder()
-    supcoder = create_CNN()
-    print("THEIR")
-    print(encoder.summary())
-    print("-"*20)
-    print("OURS")
-    print(supcoder.summary())
+    device_name = tf.test.gpu_device_name()
+    if not device_name:
+        raise SystemError('GPU device not found')
+    print('Found GPU at: {}'.format(device_name))
     # x = tf.constant([[1e-38, 1e-37, 0.000000000000000000000000000000000001]])
     # y = tf.constant([[10.0, 100.0, 1000.0]])
     # # x_sum = tf.reduce_sum(x, 1) # [3 3]
@@ -259,7 +264,7 @@ if __name__ == '__main__': # REFER TO WEBSITE FOR INSPO
     # batch_size = 1000
     hidden_units = 512
     projection_units = 128
-    num_epochs = 1
+    num_epochs = 100
     dropout_rate = 0.5
     temperature = 0.05
 
@@ -279,16 +284,23 @@ if __name__ == '__main__': # REFER TO WEBSITE FOR INSPO
     print(f"x_train shape: {x_train.shape} - y_train shape: {y_train.shape}")
     print(f"x_test shape: {x_test.shape} - y_test shape: {y_test.shape}")
 
-    data_augmentation = keras.Sequential( #CHANGE AUGMENTATION BASED ON STUDY?
-        [
-            layers.Normalization(),
-            layers.RandomFlip("horizontal"),
-            layers.RandomRotation(0.02),
-        ]
-    )
+    # data_augmentation = keras.Sequential( #CHANGE AUGMENTATION BASED ON STUDY?
+    #     [
+    #         layers.Normalization(),
+    #         layers.RandomFlip("horizontal"),
+    #         layers.RandomRotation(0.02),
+    #     ]
+    # )
 
-    # Setting the state of the normalization layer.
-    data_augmentation.layers[0].adapt(x_train)
+
+    # # Setting the state of the normalization layer.
+
+    # data_augmentation.layers[0].adapt(x_train)
+    x_train, x_test = prep_pixels(x_train, x_test)
+
+    datagen = ImageDataGenerator(width_shift_range=0.1, height_shift_range=0.1, horizontal_flip=True)
+    it_train = datagen.flow(x_train, y_train, batch_size=batch_size)
+    steps = int(x_train.shape[0]/batch_size)
 
     if EXPERIMENTAL:
         experiment()

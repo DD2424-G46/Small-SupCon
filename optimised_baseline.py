@@ -14,6 +14,7 @@ from keras.layers import Dropout
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
 from keras.layers import BatchNormalization
 from keras.optimizers import SGD
+import numpy as np
 
 def load_dataset():
     (trainX, trainY), (testX, testY) = cifar10.load_data()
@@ -36,6 +37,18 @@ def prep_pixels(train, test):
     # print(train_norm)
     # print("TEST NORM after division")
     # print(test_norm)
+
+    return train_norm, test_norm
+
+def normalise_pixels(train, test):
+    train_norm = train.astype('float32')
+    test_norm = test.astype('float32')
+
+    mean = np.mean(train_norm, axis=(0,1,2), keepdims=True)
+    std = np.std(train_norm, axis=(0,1,2), keepdims=True)
+
+    train_norm = (train_norm - mean) / std
+    test_norm = (test_norm - mean) / std
 
     return train_norm, test_norm
 
@@ -75,13 +88,13 @@ def define_model():
     model.compile(optimizer=keras.optimizers.Adam(0.001), loss='categorical_crossentropy', metrics=['accuracy'])
     return model
 
-def summarize_diagnostics(history):
+def summarize_diagnostics(history, num_epochs, batch_size, acc):
     plt.figure(figsize=(15, 5))
     
     plt.subplot(1, 2, 1)
     plt.title('Cross Entropy Loss')
     plt.plot(history.history['loss'], color='blue', label='Training set')
-    plt.plot(history.history['val_loss'], color='orange', label='Test set')
+    plt.plot(history.history['val_loss'], color='orange', label='Validation set')
     plt.xlabel('Epoch')
     plt.ylabel('Loss')
     plt.legend()
@@ -89,37 +102,39 @@ def summarize_diagnostics(history):
     plt.subplot(1, 2, 2)
     plt.title('Classification Accuracy')
     plt.plot(history.history['accuracy'], color='blue', label='Training set')
-    plt.plot(history.history['val_accuracy'], color='orange', label='Test set')
+    plt.plot(history.history['val_accuracy'], color='orange', label='Validation set')
     plt.xlabel('Epoch')
     plt.ylabel('Accuracy')
     plt.legend()
     
     filename = sys.argv[0].split('/')[-1]
-    plt.savefig(filename + '_plot.png')
+    plt.savefig('results-baseline/epoch-test/' + filename + '_num_epochs='+ str(num_epochs) +'_batch_size='+ str(batch_size) + '_acc=' + str(acc) +'_plot.png')
     plt.close()
 
 def run_test_harness():
     start_time = time.time()
     trainX, trainY, testX, testY = load_dataset()
-    trainX, testX = prep_pixels(trainX, testX)
+    trainX, testX = normalise_pixels(trainX, testX)
 
     # trainX = trainX[:2000]
     # trainY = trainY[:2000]
     # testX = testX[:2000]
     # testY = testY[:2000]
+    batch_size = 256
+    num_epochs = 350
     model = define_model()
-    print(model.summary())
-    # datagen = ImageDataGenerator(width_shift_range=0.1, height_shift_range=0.1, horizontal_flip=True)
-    # it_train = datagen.flow(trainX, trainY, batch_size=64)
-    # steps = int(trainX.shape[0]/64)
-    # history = model.fit(it_train, steps_per_epoch=steps, epochs=400, validation_data=(testX, testY), verbose=0)
+    # print(model.summary())
+    datagen = ImageDataGenerator(width_shift_range=0.1, height_shift_range=0.1, horizontal_flip=True, validation_split=0.1)
+    it_train = datagen.flow(trainX, trainY, batch_size=batch_size, subset='training')
+    it_val = datagen.flow(trainX, trainY, batch_size=batch_size, subset='validation')
+    history = model.fit(it_train, steps_per_epoch=45000 // batch_size, validation_data=it_val, validation_steps=5000 // batch_size, epochs=num_epochs)
     
-    # _, acc = model.evaluate(testX, testY, verbose=0)
-    # print('> %.3f' % (acc * 100.0))
-    # summarize_diagnostics(history)
-    # end_time = time.time()
-    # execution_time = end_time - start_time
-    # print("Execution time:", execution_time)
+    _, acc = model.evaluate(testX, testY, verbose=0)
+    print('> %.3f' % (acc * 100.0))
+    summarize_diagnostics(history, num_epochs, batch_size, acc)
+    end_time = time.time()
+    execution_time = end_time - start_time
+    print("Execution time:", execution_time)
 
 
 run_test_harness()

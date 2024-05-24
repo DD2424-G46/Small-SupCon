@@ -82,7 +82,8 @@ def run_test_harness():
     trainX, trainY, testX, testY = load_dataset()
     trainX, testX = prep_pixels(trainX, testX)
     model = define_model()
-    history = model.fit(trainX, trainY, epochs=100, batch_size=64, validation_data=(testX, testY), verbose=0)
+    history = model.fit(trainX, trainY, epochs=100, batch_size=64, validation_data=(testX, testY)#, verbose=0
+                        )
     _, acc = model.evaluate(testX, testY, verbose=0)
     print('> %.3f' % (acc * 100.0))
     summarize_diagnostics(history)
